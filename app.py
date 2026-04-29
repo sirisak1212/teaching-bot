@@ -66,7 +66,7 @@ def handle_message(event):
         return  # ⭐ สำคัญ
 
     # 🟢 ===== บันทึกข้อมูล =====
-    parts = [p.strip() for p in text.split("\n") if p.strip()]
+    parts = [p.strip() for p in text.split("\n\n") if p.strip()]
 
     if len(parts) == 3:
         name, content, comment = parts
