@@ -113,7 +113,7 @@ if dates:
             text=f"พบข้อมูลของ {search_name} เลือกวันที่:",
             quick_reply=QuickReply(items=quick_buttons)
         )
-    )
+    
     return
 
     # 📅 ===== เลือกวันแล้วแสดงผล =====
