@@ -39,30 +39,31 @@ def handle_message(event):
 
     # 🔴 ===== ลบข้อมูล =====
     if text.startswith("ลบ"):
-        name_to_delete = text.replace("ลบ", "").strip()
+    name_to_delete = text.replace("ลบ", "").strip()
 
-        data = sheet.get_all_values()
-        rows_to_delete = []
+    data = sheet.get_all_values()
+    rows_to_delete = []
 
-        for i, row in enumerate(data):
-            if row and row[0] == name_to_delete:
-                rows_to_delete.append(i + 1)
+    for i, row in enumerate(data):
+        if row and row[0].strip() == name_to_delete:
+            rows_to_delete.append(i + 1)
 
-        if rows_to_delete:
-            for row_index in reversed(rows_to_delete):
-                sheet.delete_rows(row_index)
+    if rows_to_delete:
+        for row_index in reversed(rows_to_delete):
+            sheet.delete_rows(row_index)
 
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"ลบข้อมูลของ {name_to_delete} เรียบร้อย ✅")
-            )
-        else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
-            )
-        return  # 🔥 สำคัญ
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"ลบข้อมูลของ {name_to_delete} เรียบร้อย ✅")
+        )
+    else:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
+        )
 
+    return
+         
     # 🟢 ===== บันทึกข้อมูล =====
     parts = [p.strip() for p in text.split("\n\n") if p.strip()]
 
