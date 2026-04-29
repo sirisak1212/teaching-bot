@@ -63,6 +63,25 @@ def handle_message(event):
         )
 
     return
+
+         # 🔍 ค้นหาอัตโนมัติ (พิมพ์ชื่ออย่างเดียว)
+data = sheet.get_all_values()
+result = []
+
+for row in data[1:]:
+    if text.strip() == row[0]:
+        result.append(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
+
+if result:
+    reply = "\n".join(result[-5:])  # ล่าสุด 5 รายการ
+else:
+    reply = "ไม่พบข้อมูล"
+
+line_bot_api.reply_message(
+    event.reply_token,
+    TextSendMessage(text=reply)
+)
+return
          
     # 🟢 ===== บันทึกข้อมูล =====
     parts = [p.strip() for p in text.split("\n\n") if p.strip()]
