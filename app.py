@@ -45,27 +45,36 @@ def handle_message(event):
 
     # 🔴 ===== ลบข้อมูล =====
     if text.startswith("ลบ"):
-        name_to_delete = text.replace("ลบ", "", 1).strip()
+    name_to_delete = text.replace("ลบ", "", 1).strip()
 
-        rows_to_delete = []
+    data = sheet.get_all_values()
+    rows_to_delete = []
 
-        for i, row in enumerate(data):
-            if len(row) > 0 and row[0].strip() == name_to_delete:
-                rows_to_delete.append(i + 1)
+    for i, row in enumerate(data[3:], start=4):  # ⭐ แก้ตรงนี้
+        if len(row) > 0:
+            sheet_name = row[0].strip()
 
-        if rows_to_delete:
-            for row_index in reversed(rows_to_delete):
-                sheet.delete_rows(row_index)
+            print("เช็ค:", sheet_name, "vs", name_to_delete)  # debug
 
-            reply = f"ลบ {name_to_delete} {len(rows_to_delete)} รายการแล้ว ✅"
-        else:
-            reply = f"ไม่พบชื่อ {name_to_delete}"
+            if sheet_name == name_to_delete:
+                rows_to_delete.append(i)
+
+    print("จะลบแถว:", rows_to_delete)
+
+    if rows_to_delete:
+        for row_index in reversed(rows_to_delete):
+            sheet.delete_rows(row_index)
 
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=reply)
+            TextSendMessage(text=f"ลบ {name_to_delete} {len(rows_to_delete)} รายการแล้ว ✅")
         )
-        return
+    else:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
+        )
+    return
 
 
     # 📅 ===== เลือกวัน (ชื่อ + วันที่) =====
