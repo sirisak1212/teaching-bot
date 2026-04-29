@@ -10,7 +10,7 @@ import json
 app = Flask(__name__)
 
 # 🔑 LINE
-LINE_CHANNEL_ACCESS_TOKEN = "299bf9cb9a1a471623ed268694416c2e6TkhaYcTWrBigEH5OH5e6jez1q1kb4xS4WDKm9cO8C3gm+HPjjTKg8p4exPG7Sn3hNF0PLoL3er4PGLISnKYjeUKeRkYOSsxlKOnxlS3KwucDnyilFU="
+LINE_CHANNEL_ACCESS_TOKEN = "6TkhaYcTWrBigEH5OH5e6jez1q1kb4xS4WDKm9cO8C3gm+HPjjTKg8p4exPG7Sn3hNF0PLoL3er4PGLISnKYjeUKeRkYOSsxlKOnxlS3Kwu8pv4pN2bEiMVJLEpv0k9+ne34cno+K0jVVkCY7wlthwdB04t89/1O/w1cDnyilFU="
 LINE_CHANNEL_SECRET = "299bf9cb9a1a471623ed268694416c2e"
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
@@ -27,6 +27,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open("TeachingRecords").sheet1
 
+
 # ===== Webhook =====
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -35,39 +36,95 @@ def callback():
     handler.handle(body, signature)
     return 'OK'
 
+
 # ===== Main =====
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
 
     # 🔴 ===== ลบข้อมูล =====
-if text.startswith("ลบ"):
-    name_to_delete = text.replace("ลบ", "", 1).strip()
+    if text.startswith("ลบ"):
+        name_to_delete = text.replace("ลบ", "", 1).strip()
 
-    data = sheet.get_all_values()
-    rows_to_delete = []
+        data = sheet.get_all_values()
+        rows_to_delete = []
 
-    for i, row in enumerate(data):
-        if len(row) > 0:
-            sheet_name = row[0].strip()
-            if sheet_name == name_to_delete:
+        for i, row in enumerate(data):
+            if len(row) > 0 and row[0].strip() == name_to_delete:
                 rows_to_delete.append(i + 1)
 
-    if rows_to_delete:
-        for row_index in reversed(rows_to_delete):
-            sheet.delete_rows(row_index)
+        if rows_to_delete:
+            for row_index in reversed(rows_to_delete):
+                sheet.delete_rows(row_index)
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"ลบ {name_to_delete} {len(rows_to_delete)} รายการแล้ว ✅")
+            )
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
+            )
+        return
+
+
+    # 📅 ===== เลือกวัน (ชื่อ + วันที่) =====
+    parts = text.split()
+    if len(parts) == 2:
+        search_name = parts[0]
+        search_date = parts[1]
+
+        data = sheet.get_all_values()
+        result = []
+
+        for row in data[1:]:
+            if len(row) >= 4:
+                if row[0].strip() == search_name and row[1].strip() == search_date:
+                    result.append(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
+
+        if result:
+            reply = "\n".join(result)
+        else:
+            reply = "ไม่พบข้อมูล"
 
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"ลบ {name_to_delete} ทั้งหมด {len(rows_to_delete)} รายการแล้ว ✅")
+            TextSendMessage(text=reply)
         )
-    else:
+        return
+
+
+    # 🔍 ===== ค้นหา (แสดงวันที่ให้เลือก) =====
+    data = sheet.get_all_values()
+    dates = []
+
+    search_name = text.strip()
+
+    for row in data[1:]:
+        if len(row) >= 2:
+            if row[0].strip() == search_name:
+                date = row[1].strip()
+                if date not in dates:
+                    dates.append(date)
+
+    if dates:
+        quick_buttons = [
+            QuickReplyButton(
+                action=MessageAction(label=d, text=f"{search_name} {d}")
+            )
+            for d in dates
+        ]
+
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
+            TextSendMessage(
+                text=f"พบข้อมูลของ {search_name} เลือกวันที่:",
+                quick_reply=QuickReply(items=quick_buttons)
+            )
         )
+        return
 
-    return
 
     # 🟢 ===== บันทึกข้อมูล =====
     parts = [p.strip() for p in text.split("\n\n") if p.strip()]
@@ -82,66 +139,14 @@ if text.startswith("ลบ"):
             event.reply_token,
             TextSendMessage(text="บันทึกเรียบร้อย ✅")
         )
-        return  # ⭐ สำคัญ
-
-    # 🔍 ===== ค้นหา (แสดงวันที่ให้เลือก) =====
-data = sheet.get_all_values()
-dates = []
-
-search_name = text.strip()
-
-for row in data[1:]:
-    if len(row) >= 2:
-        name = row[0].strip()
-        date = row[1].strip()
-
-        if name == search_name:
-            if date not in dates:
-                dates.append(date)
-
-if dates:
-    from linebot.models import QuickReply, QuickReplyButton, MessageAction
-
-    quick_buttons = [
-        QuickReplyButton(action=MessageAction(label=d, text=f"{search_name} {d}"))
-        for d in dates
-    ]
-
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(
-            text=f"พบข้อมูลของ {search_name} เลือกวันที่:",
-            quick_reply=QuickReply(items=quick_buttons)
-        )
-    
-    return
-
-    # 📅 ===== เลือกวันแล้วแสดงผล =====
-parts = text.split()
-
-if len(parts) == 2:
-    search_name = parts[0]
-    search_date = parts[1]
-
-    data = sheet.get_all_values()
-    result = []
-
-    for row in data[1:]:
-        if len(row) >= 4:
-            if row[0].strip() == search_name and row[1].strip() == search_date:
-                result.append(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
-
-    if result:
-        reply = "\n".join(result)
     else:
-        reply = "ไม่พบข้อมูล"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(
+                text="พิมพ์แบบนี้:\n\nชื่อ\n\nเนื้อหา\n\nความคิดเห็น\n\nหรือ\nลบ ชื่อ\n\nหรือพิมพ์ชื่อเพื่อค้นหา"
+            )
+        )
 
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply)
-    )
-    return
-    )
 
 # ===== Run =====
 if __name__ == "__main__":
