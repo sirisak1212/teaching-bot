@@ -41,12 +41,12 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
+    data = sheet.get_all_values()
 
     # 🔴 ===== ลบข้อมูล =====
     if text.startswith("ลบ"):
         name_to_delete = text.replace("ลบ", "", 1).strip()
 
-        data = sheet.get_all_values()
         rows_to_delete = []
 
         for i, row in enumerate(data):
@@ -57,36 +57,9 @@ def handle_message(event):
             for row_index in reversed(rows_to_delete):
                 sheet.delete_rows(row_index)
 
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"ลบ {name_to_delete} {len(rows_to_delete)} รายการแล้ว ✅")
-            )
+            reply = f"ลบ {name_to_delete} {len(rows_to_delete)} รายการแล้ว ✅"
         else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"ไม่พบชื่อ {name_to_delete}")
-            )
-        return
-
-
-    # 📅 ===== เลือกวัน (ชื่อ + วันที่) =====
-    parts = text.split()
-    if len(parts) == 2:
-        search_name = parts[0]
-        search_date = parts[1]
-
-        data = sheet.get_all_values()
-        result = []
-
-        for row in data[1:]:
-            if len(row) >= 4:
-                if row[0].strip() == search_name and row[1].strip() == search_date:
-                    result.append(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
-
-        if result:
-            reply = "\n".join(result)
-        else:
-            reply = "ไม่พบข้อมูล"
+            reply = f"ไม่พบชื่อ {name_to_delete}"
 
         line_bot_api.reply_message(
             event.reply_token,
@@ -95,18 +68,36 @@ def handle_message(event):
         return
 
 
-    # 🔍 ===== ค้นหา (แสดงวันที่ให้เลือก) =====
-    data = sheet.get_all_values()
-    dates = []
+    # 📅 ===== เลือกวัน (ชื่อ + วันที่) =====
+    parts = text.split()
+    if len(parts) == 2:
+        search_name, search_date = parts
 
+        result = []
+
+        for row in data[1:]:
+            if len(row) >= 4:
+                if row[0].strip() == search_name and row[1].strip() == search_date:
+                    result.append(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
+
+        reply = "\n".join(result) if result else "ไม่พบข้อมูล"
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=reply)
+        )
+        return
+
+
+    # 🔍 ===== ค้นหา (ชื่อ → แสดงวันที่) =====
+    dates = []
     search_name = text.strip()
 
     for row in data[1:]:
-        if len(row) >= 2:
-            if row[0].strip() == search_name:
-                date = row[1].strip()
-                if date not in dates:
-                    dates.append(date)
+        if len(row) >= 2 and row[0].strip() == search_name:
+            date = row[1].strip()
+            if date not in dates:
+                dates.append(date)
 
     if dates:
         quick_buttons = [
@@ -146,7 +137,6 @@ def handle_message(event):
                 text="พิมพ์แบบนี้:\n\nชื่อ\n\nเนื้อหา\n\nความคิดเห็น\n\nหรือ\nลบ ชื่อ\n\nหรือพิมพ์ชื่อเพื่อค้นหา"
             )
         )
-
 
 # ===== Run =====
 if __name__ == "__main__":
